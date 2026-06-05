@@ -1,6 +1,9 @@
 from flask import Flask
 from model import db, user
+from routes.authentication import auth_bp
+from routes.pages import pages_bp
 from werkzeug.security import generate_password_hash
+from flask_jwt_extended import JWTManager
 
 
 def create_app():
@@ -13,7 +16,15 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///trek.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+    app.config["SECRET_KEY"] = "trek-management-secret-key-2024-flask"
+    app.config["JWT_SECRET_KEY"] = "trek-management-jwt-secret-key-2024-secure"
+
     db.init_app(app)
+
+    JWTManager(app)
+
+    app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(pages_bp)
 
     return app
 
