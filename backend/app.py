@@ -2,6 +2,7 @@ from flask import Flask
 from model import db, user
 from routes.authentication import auth_bp
 from routes.admin import admin_bp
+from routes.user import user_bp
 from routes.staff import staff_bp
 from routes.pages import pages_bp
 from werkzeug.security import generate_password_hash
@@ -60,6 +61,7 @@ def create_app():
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(admin_bp, url_prefix="/admin")
+    app.register_blueprint(user_bp, url_prefix="/user")
     app.register_blueprint(staff_bp, url_prefix="/staff")
     app.register_blueprint(pages_bp)
 

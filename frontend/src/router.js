@@ -13,6 +13,7 @@ import AdminReports from './views/admin/AdminReports.vue'
 import AdminNotifications from './views/admin/AdminNotifications.vue'
 
 import StaffDashboard from './views/staff/StaffDashboard.vue'
+import UserDashboard from './views/user/UserDashboard.vue'
 
 const routes = [
   { path: '/', component: Login, meta: { public: true } },
@@ -27,6 +28,7 @@ const routes = [
   { path: '/adminnotifications', component: AdminNotifications, meta: { role: 'admin' } },
 
   { path: '/staffdashboard', component: StaffDashboard, meta: { role: 'staff' } },
+  { path: '/userdashboard', component: UserDashboard, meta: { role: 'user' } },
 
   // Unknown paths fall back to login.
   { path: '/:pathMatch(.*)*', redirect: '/' },
