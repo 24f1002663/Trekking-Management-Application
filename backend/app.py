@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from mail_service import mail
+from celery_app import make_celery
 import os
 
 
@@ -35,6 +36,13 @@ def create_app():
 
     if not os.path.exists(app.config["UPLOAD_FOLDER"]):
         os.makedirs(app.config["UPLOAD_FOLDER"])
+
+    app.config["CELERY_BROKER_URL"] = os.environ.get(
+        "CELERY_BROKER_URL", "redis://localhost:6379/0"
+    )
+    app.config["CELERY_RESULT_BACKEND"] = os.environ.get(
+        "CELERY_RESULT_BACKEND", "redis://localhost:6379/0"
+    )
 
     mail_user = os.environ.get("MAIL_USERNAME", "")
     mail_pass = os.environ.get("MAIL_PASSWORD", "")
@@ -88,6 +96,10 @@ def create_admin():
 
 
 app = create_app()
+celery = make_celery(app)
+
+# Import tasks so Celery discovers them
+import scheduler  # noqa: F401
 
 with app.app_context():
     db.create_all()
