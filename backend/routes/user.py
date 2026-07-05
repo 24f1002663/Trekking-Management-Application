@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from model import db, user, trek, booking, trekimage
 from routes.auth_helper import user_required
+from extensions import cache
 from datetime import datetime
 from mail_service import mail
 from flask_mail import Message
@@ -45,6 +46,9 @@ def dashboard():
 @user_bp.route("/treks", methods=["GET"])
 @jwt_required()
 @user_required
+# Milestone 8: cache the (identical-for-all-users) open-trek listing in Redis,
+# keyed by the filter query string. Invalidated on booking/cancel below.
+@cache.cached(timeout=60, query_string=True)
 def available_treks():
     search = request.args.get("search", "")
     difficulty = request.args.get("difficulty", "")
@@ -141,6 +145,7 @@ def book_trek(trekid):
     db.session.add(new_booking)
     current_trek.bookedseats += 1
     db.session.commit()
+    cache.clear()  # seat counts changed -> refresh cached trek listing
 
     try:
         msg = Message(
@@ -220,6 +225,7 @@ def cancel_booking(bookingid):
         db.session.add(admin_note)
 
     db.session.commit()
+    cache.clear()  # seat freed -> refresh cached trek listing
 
     return jsonify({
         "success": True,

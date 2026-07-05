@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required
 from model import db, user, trek, booking, trekimage, payment
 from routes.auth_helper import admin_required
+from extensions import cache
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -204,6 +205,7 @@ def create_trek():
     )
     db.session.add(new_trek)
     db.session.commit()
+    cache.clear()  # trek listing changed
     return jsonify({"success": True, "message": "Trek created. Use 'Assign Staff' to assign a staff member."}), 201
 #viewalltreks
 @admin_bp.route("/treks", methods=["GET"])
@@ -256,6 +258,7 @@ def update_trek(trekid):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": "Update failed: " + str(e)}), 500
+    cache.clear()  # trek listing changed
     return jsonify({"success": True, "message": "Trek updated"}), 200
 # Delete Trek
 @admin_bp.route("/treks/<int:trekid>", methods=["DELETE"])
@@ -275,6 +278,7 @@ def delete_trek(trekid):
     except IntegrityError:
         db.session.rollback()
         return jsonify({"success": False, "message": "Cannot delete trek because related records still exist"}), 400
+    cache.clear()  # trek listing changed
     return jsonify({"success": True, "message": "Trek deleted"}), 200
 # Update Trek Status
 @admin_bp.route("/treks/<int:trekid>/status", methods=["PUT"])
@@ -296,6 +300,7 @@ def update_trek_status(trekid):
         )
     t.status = new_status
     db.session.commit()
+    cache.clear()  # trek visibility/status changed
     return jsonify({"success": True, "message": f"Status updated to {new_status}"}), 200
 # Assign Staff to Trek
 @admin_bp.route("/treks/<int:trekid>/assign", methods=["PUT"])
@@ -380,6 +385,7 @@ def upload_trek_image(trekid):
     new_image = trekimage(trekid=trekid, imageurl=imageurl)
     db.session.add(new_image)
     db.session.commit()
+    cache.clear()  # trek images shown in listing changed
 
     return jsonify({
         "success": True,
@@ -399,6 +405,7 @@ def delete_trek_image(trekid, imageid):
         os.remove(filepath)
     db.session.delete(image)
     db.session.commit()
+    cache.clear()  # trek images shown in listing changed
     return jsonify({"success": True, "message": "Image deleted"}), 200
 # Search Users
 @admin_bp.route("/users/search/<string:keyword>", methods=["GET"])
@@ -523,6 +530,7 @@ def admin_cancel_booking(bookingid):
     db.session.add(admin_note)
 
     db.session.commit()
+    cache.clear()  # seat freed -> refresh cached trek listing
     return jsonify({"success": True, "message": "Booking cancelled successfully"}), 200
 
 # Update Payment Status (by Admin)

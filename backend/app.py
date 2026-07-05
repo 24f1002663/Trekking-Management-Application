@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from mail_service import mail
+from extensions import cache
 from celery_app import make_celery
 import os
 
@@ -37,6 +38,16 @@ def create_app():
     if not os.path.exists(app.config["UPLOAD_FOLDER"]):
         os.makedirs(app.config["UPLOAD_FOLDER"])
 
+    # Redis-backed API caching (Milestone 8). Uses a separate Redis DB (1)
+    # from the Celery broker/result backend (0) to keep them isolated.
+    # CACHE_TYPE defaults to RedisCache; it can be overridden (e.g. to
+    # SimpleCache) via env only for local dev without a Redis server.
+    app.config["CACHE_TYPE"] = os.environ.get("CACHE_TYPE", "RedisCache")
+    app.config["CACHE_REDIS_URL"] = os.environ.get(
+        "CACHE_REDIS_URL", "redis://localhost:6379/1"
+    )
+    app.config["CACHE_DEFAULT_TIMEOUT"] = 300
+
     app.config["CELERY_BROKER_URL"] = os.environ.get(
         "CELERY_BROKER_URL", "redis://localhost:6379/0"
     )
@@ -63,6 +74,7 @@ def create_app():
 
     db.init_app(app)
     mail.init_app(app)
+    cache.init_app(app)
 
     JWTManager(app)
     CORS(app)
