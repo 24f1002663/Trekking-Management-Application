@@ -1,0 +1,374 @@
+openapi: 3.0.3
+info:
+  title: Trekking Management Application API
+  version: "2.0"
+  description: >
+    REST API for the Trekking Management Application (TMA-V2).
+    Flask backend with JWT authentication and three roles: admin, staff, user.
+    All protected endpoints expect an `Authorization: Bearer <JWT>` header.
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Auth
+  - name: Admin
+  - name: Staff
+  - name: User
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Message:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    LoginResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        token: { type: string }
+        userid: { type: integer }
+        name: { type: string }
+        role: { type: string, enum: [admin, staff, user] }
+    RegisterRequest:
+      type: object
+      required: [name, email, password, gender]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string }
+        phone: { type: string }
+        gender: { type: string, enum: [Male, Female, Other] }
+    Trek:
+      type: object
+      properties:
+        trekid: { type: integer }
+        trekname: { type: string }
+        location: { type: string }
+        difficulty: { type: string, enum: [Easy, Medium, Hard] }
+        durationdays: { type: integer }
+        price: { type: number }
+        seats: { type: integer }
+        bookedseats: { type: integer }
+        assignedstaffid: { type: integer }
+        allowedgender: { type: string, enum: [Male, Female, Coed] }
+        startdate: { type: string, format: date }
+        enddate: { type: string, format: date }
+        description: { type: string }
+        instructions: { type: string }
+        status:
+          type: string
+          enum: [Pending, Approved, Open, Closed, Started, Completed]
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ---------------- Auth ----------------
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Self-register a trekker (user role)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201': { description: Registered, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+        '400': { description: Validation error }
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and receive a JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { description: Logged in, content: { application/json: { schema: { $ref: '#/components/schemas/LoginResponse' } } } }
+        '401': { description: Invalid credentials }
+        '403': { description: Account blacklisted }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out (client discards the token)
+      security: []
+      responses:
+        '200': { description: Logged out }
+
+  # ---------------- Admin ----------------
+  /admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: Aggregate counts (users, staff, treks, bookings)
+      responses: { '200': { description: OK } }
+  /admin/staff:
+    get:
+      tags: [Admin]
+      summary: List all staff
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Admin]
+      summary: Create a staff account (emails credentials)
+      responses: { '200': { description: Created }, '400': { description: Email exists } }
+  /admin/staff/{staffid}:
+    put:
+      tags: [Admin]
+      summary: Update a staff member
+      parameters: [{ name: staffid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Updated }, '404': { description: Not found } }
+    delete:
+      tags: [Admin]
+      summary: Delete a staff member (blocked if assigned to treks)
+      parameters: [{ name: staffid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Deleted }, '400': { description: Assigned to treks } }
+  /admin/staff/{staffid}/blacklist:
+    put:
+      tags: [Admin]
+      summary: Blacklist a staff member
+      parameters: [{ name: staffid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /admin/staff/{staffid}/unblacklist:
+    put:
+      tags: [Admin]
+      summary: Reactivate a staff member
+      parameters: [{ name: staffid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /admin/staff/search/{keyword}:
+    get:
+      tags: [Admin]
+      summary: Search staff by name
+      parameters: [{ name: keyword, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users
+      responses: { '200': { description: OK } }
+  /admin/users/{userid}/blacklist:
+    put:
+      tags: [Admin]
+      summary: Blacklist a user
+      parameters: [{ name: userid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /admin/users/{userid}/unblacklist:
+    put:
+      tags: [Admin]
+      summary: Reactivate a user
+      parameters: [{ name: userid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /admin/users/search/{keyword}:
+    get:
+      tags: [Admin]
+      summary: Search users by name
+      parameters: [{ name: keyword, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /admin/treks:
+    get:
+      tags: [Admin]
+      summary: List all treks
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object } } } } }
+    post:
+      tags: [Admin]
+      summary: Create a trek
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Trek' } } } }
+      responses: { '201': { description: Created }, '400': { description: Invalid dates } }
+  /admin/treks/{trekid}:
+    put:
+      tags: [Admin]
+      summary: Update a trek
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Updated }, '404': { description: Not found } }
+    delete:
+      tags: [Admin]
+      summary: Delete a trek (blocked if bookings exist)
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Deleted }, '400': { description: Bookings exist } }
+  /admin/treks/{trekid}/status:
+    put:
+      tags: [Admin]
+      summary: Update trek status
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '400': { description: Invalid status } }
+  /admin/treks/{trekid}/assign:
+    put:
+      tags: [Admin]
+      summary: Assign staff to a trek (checks date availability, emails staff)
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Assigned }, '400': { description: Staff unavailable } }
+  /admin/treks/{trekid}/images:
+    get:
+      tags: [Admin]
+      summary: List trek images
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Admin]
+      summary: Upload a trek image (multipart/form-data, field "image")
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image: { type: string, format: binary }
+      responses: { '201': { description: Uploaded } }
+  /admin/treks/{trekid}/images/{imageid}:
+    delete:
+      tags: [Admin]
+      summary: Delete a trek image
+      parameters:
+        - { name: trekid, in: path, required: true, schema: { type: integer } }
+        - { name: imageid, in: path, required: true, schema: { type: integer } }
+      responses: { '200': { description: Deleted }, '404': { description: Not found } }
+  /admin/bookings:
+    get:
+      tags: [Admin]
+      summary: List all bookings
+      responses: { '200': { description: OK } }
+  /admin/bookings/{bookingid}/cancel:
+    put:
+      tags: [Admin]
+      summary: Cancel a booking (reason required, notifies user)
+      parameters: [{ name: bookingid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Cancelled }, '400': { description: Reason required } }
+  /admin/bookings/{bookingid}/payment:
+    put:
+      tags: [Admin]
+      summary: Update a booking's payment status (Pending/Completed)
+      parameters: [{ name: bookingid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Updated } }
+  /admin/reports:
+    get:
+      tags: [Admin]
+      summary: Statistics report (counts, completed/cancelled, payments)
+      responses: { '200': { description: OK } }
+  /admin/notifications:
+    get:
+      tags: [Admin]
+      summary: List admin notifications
+      responses: { '200': { description: OK } }
+  /admin/notifications/{nid}/read:
+    put:
+      tags: [Admin]
+      summary: Mark a notification read
+      parameters: [{ name: nid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+
+  # ---------------- Staff ----------------
+  /staff/dashboard:
+    get:
+      tags: [Staff]
+      summary: Assigned treks with participant counts
+      responses: { '200': { description: OK } }
+  /staff/treks:
+    get:
+      tags: [Staff]
+      summary: List treks assigned to the logged-in staff
+      responses: { '200': { description: OK } }
+  /staff/treks/{trekid}/status:
+    put:
+      tags: [Staff]
+      summary: Update status of an assigned trek (Open/Closed/Started/Completed)
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { description: Not assigned to you } }
+  /staff/treks/{trekid}/slots:
+    put:
+      tags: [Staff]
+      summary: Update seat count (>= already booked)
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '400': { description: Below booked } }
+  /staff/treks/{trekid}/participants:
+    get:
+      tags: [Staff]
+      summary: List participants of an assigned trek
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /staff/treks/{trekid}/reject:
+    post:
+      tags: [Staff]
+      summary: Reject a trek assignment (reason required, notifies admin)
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Submitted }, '400': { description: Reason required } }
+
+  # ---------------- User ----------------
+  /user/dashboard:
+    get:
+      tags: [User]
+      summary: User dashboard stats + recent activity
+      responses: { '200': { description: OK } }
+  /user/treks:
+    get:
+      tags: [User]
+      summary: Browse open treks with optional filters
+      parameters:
+        - { name: search, in: query, schema: { type: string }, description: Match trek name }
+        - { name: difficulty, in: query, schema: { type: string, enum: [Easy, Medium, Hard] } }
+        - { name: location, in: query, schema: { type: string }, description: Match location }
+        - { name: duration, in: query, schema: { type: integer }, description: Exact duration in days }
+      responses: { '200': { description: OK (Redis-cached) } }
+  /user/book/{trekid}:
+    post:
+      tags: [User]
+      summary: Book an open trek (checks seats, gender, duplicates)
+      parameters: [{ name: trekid, in: path, required: true, schema: { type: integer } }]
+      responses: { '201': { description: Booked }, '400': { description: Not bookable } }
+  /user/bookings:
+    get:
+      tags: [User]
+      summary: List the user's bookings
+      responses: { '200': { description: OK } }
+  /user/bookings/{bookingid}/cancel:
+    put:
+      tags: [User]
+      summary: Cancel own booking
+      parameters: [{ name: bookingid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Cancelled }, '404': { description: Not found } }
+  /user/profile:
+    get:
+      tags: [User]
+      summary: Get own profile
+      responses: { '200': { description: OK } }
+    put:
+      tags: [User]
+      summary: Update own profile (name, phone, gender, password)
+      responses: { '200': { description: Updated } }
+  /user/export:
+    get:
+      tags: [User]
+      summary: Export own bookings as CSV
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+  /user/notifications:
+    get:
+      tags: [User]
+      summary: List the user's notifications
+      responses: { '200': { description: OK } }
+  /user/notifications/{nid}/read:
+    put:
+      tags: [User]
+      summary: Mark a notification read
+      parameters: [{ name: nid, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
