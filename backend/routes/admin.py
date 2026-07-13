@@ -126,6 +126,12 @@ def blacklist_staff(staffid):
     staff = user.query.filter_by(userid=staffid, role="staff").first()
     if not staff:
         return jsonify({"success": False, "message": "Staff not found"}), 404
+    active_treks = trek.query.filter(
+        trek.assignedstaffid == staffid,
+        trek.status.in_(["Open", "Started"])
+    ).count()
+    if active_treks > 0:
+        return jsonify({"success": False, "message": f"Cannot blacklist: staff has {active_treks} active trek(s)"}), 400
     staff.status = "blacklisted"
     db.session.commit()
     return jsonify({"success": True, "message": "Staff blacklisted"}), 200
@@ -186,12 +192,18 @@ def create_trek():
     admin_id = int(get_jwt_identity())
     start_date = datetime.strptime(data.get("startdate"), "%Y-%m-%d").date()
     end_date = datetime.strptime(data.get("enddate"), "%Y-%m-%d").date()
+    if start_date < datetime.now().date():
+        return jsonify({"success": False, "message": "Start date cannot be in the past"}), 400
     if end_date < start_date:
         return jsonify({"success": False, "message": "End date cannot be before start date"}), 400
+    difficulty = data.get("difficulty", "")
+    if difficulty not in ("Easy", "Medium", "Hard"):
+        return jsonify({"success": False, "message": "Invalid difficulty. Must be Easy, Medium, or Hard"}), 400
+
     new_trek = trek(
         trekname=data.get("trekname"),
         location=data.get("location"),
-        difficulty=data.get("difficulty"),
+        difficulty=difficulty,
         durationdays=data.get("durationdays"),
         price=data.get("price"),
         seats=data.get("seats"),
@@ -242,7 +254,11 @@ def update_trek(trekid):
     data = request.get_json()
     t.trekname = data.get("trekname") or t.trekname
     t.location = data.get("location") or t.location
-    t.difficulty = data.get("difficulty") or t.difficulty
+    new_difficulty = data.get("difficulty")
+    if new_difficulty:
+        if new_difficulty not in ("Easy", "Medium", "Hard"):
+            return jsonify({"success": False, "message": "Invalid difficulty. Must be Easy, Medium, or Hard"}), 400
+        t.difficulty = new_difficulty
     t.durationdays = data.get("durationdays") or t.durationdays
     t.price = data.get("price") or t.price
     new_seats = data.get("seats")
@@ -314,6 +330,8 @@ def assign_staff(trekid):
     staff_member = user.query.filter_by(userid=data.get("staffid"), role="staff").first()
     if not staff_member:
         return jsonify({"success": False, "message": "Staff not found"}), 404
+    if staff_member.status == "blacklisted":
+        return jsonify({"success": False, "message": "Cannot assign a blacklisted staff member"}), 400
     overlapping = trek.query.filter(
         trek.assignedstaffid == staff_member.userid,
         trek.trekid != trekid,

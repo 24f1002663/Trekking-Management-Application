@@ -29,6 +29,10 @@ def make_celery(app):
             "task": "scheduler.send_monthly_report",
             "schedule": crontab(hour=7, minute=0, day_of_month="1"),
         },
+        "auto-update-trek-status": {
+            "task": "scheduler.auto_update_trek_status",
+            "schedule": crontab(hour=0, minute=0),
+        },
     }
 
     celery.conf.timezone = "Asia/Kolkata"

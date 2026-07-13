@@ -145,3 +145,43 @@ def send_monthly_report():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+@shared_task(name="scheduler.auto_update_trek_status")
+def auto_update_trek_status():
+    """Auto-transition trek statuses based on dates.
+
+    * Open  → Started   when today >= startdate
+    * Started → Completed when today > enddate
+      (also marks associated 'Booked' bookings as 'Completed')
+    """
+    from model import db, trek, booking
+
+    today = date.today()
+    changed = 0
+
+    # Open treks whose start date has arrived → Started
+    open_treks = trek.query.filter(
+        trek.status == "Open",
+        trek.startdate <= today
+    ).all()
+    for t in open_treks:
+        t.status = "Started"
+        changed += 1
+
+    # Started treks whose end date has passed → Completed
+    started_treks = trek.query.filter(
+        trek.status == "Started",
+        trek.enddate < today
+    ).all()
+    for t in started_treks:
+        t.status = "Completed"
+        booking.query.filter_by(trekid=t.trekid, status="Booked").update(
+            {booking.status: "Completed"}, synchronize_session=False
+        )
+        changed += 1
+
+    if changed:
+        db.session.commit()
+
+    return f"Updated {changed} trek(s)"
