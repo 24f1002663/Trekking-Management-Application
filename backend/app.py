@@ -38,39 +38,26 @@ def create_app():
     if not os.path.exists(app.config["UPLOAD_FOLDER"]):
         os.makedirs(app.config["UPLOAD_FOLDER"])
 
-    # Redis-backed API caching (Milestone 8). Uses a separate Redis DB (1)
-    # from the Celery broker/result backend (0) to keep them isolated.
-    # CACHE_TYPE defaults to RedisCache; it can be overridden (e.g. to
-    # SimpleCache) via env only for local dev without a Redis server.
-    app.config["CACHE_TYPE"] = os.environ.get("CACHE_TYPE", "RedisCache")
-    app.config["CACHE_REDIS_URL"] = os.environ.get(
-        "CACHE_REDIS_URL", "redis://localhost:6379/1"
-    )
+    # Redis Cache
+    app.config["CACHE_TYPE"] = "RedisCache"
+    app.config["CACHE_REDIS_URL"] = "redis://localhost:6379/1"
     app.config["CACHE_DEFAULT_TIMEOUT"] = 300
 
-    app.config["CELERY_BROKER_URL"] = os.environ.get(
-        "CELERY_BROKER_URL", "redis://localhost:6379/0"
-    )
-    app.config["CELERY_RESULT_BACKEND"] = os.environ.get(
-        "CELERY_RESULT_BACKEND", "redis://localhost:6379/0"
-    )
+    # Celery
+    app.config["CELERY_BROKER_URL"] = "redis://localhost:6379/0"
+    app.config["CELERY_RESULT_BACKEND"] = "redis://localhost:6379/0"
 
-    mail_user = os.environ.get("MAIL_USERNAME", "")
-    mail_pass = os.environ.get("MAIL_PASSWORD", "")
 
     app.config["MAIL_SERVER"] = "smtp.gmail.com"
     app.config["MAIL_PORT"] = 587
     app.config["MAIL_USE_TLS"] = True
     app.config["MAIL_USE_SSL"] = False
-    app.config["MAIL_USERNAME"] = mail_user
-    app.config["MAIL_PASSWORD"] = mail_pass
-    app.config["MAIL_DEFAULT_SENDER"] = mail_user or "Trek Management"
 
-    if mail_user:
-        print(f"[Mail] Configured — sending from: {mail_user}")
-    else:
-        print("[Mail] WARNING: MAIL_USERNAME not set. Set env var before starting.")
-        print("[Mail] Example: $env:MAIL_USERNAME='your@email.com'; $env:MAIL_PASSWORD='app_password'")
+    app.config["MAIL_USERNAME"] = "24f1002663@ds.study.iitm.ac.in"
+    app.config["MAIL_PASSWORD"] = "hmnhocbygcjocbpz"
+    app.config["MAIL_DEFAULT_SENDER"] = "24f1002663@ds.study.iitm.ac.in"
+
+    print("[Mail] Configured — sending from: 24f1002663@ds.study.iitm.ac.in")
 
     db.init_app(app)
     mail.init_app(app)
@@ -110,12 +97,11 @@ def create_admin():
 app = create_app()
 celery = make_celery(app)
 
-# Import tasks so Celery discovers them
-import scheduler  # noqa: F401
+import scheduler 
 
 with app.app_context():
     db.create_all()
     create_admin()
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8080, use_reloader=False)
+    app.run(debug=True, port=5000, use_reloader=False)
