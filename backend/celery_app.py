@@ -10,12 +10,6 @@ def make_celery(app):
         broker=app.config.get("CELERY_BROKER_URL", "redis://localhost:6379/0"),
         backend=app.config.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0"),
     )
-
-    # NOTE: broker/backend are already set above. We deliberately do NOT copy
-    # the whole Flask config into Celery — that would mix old-style CELERY_*
-    # keys with Celery 5's new-style keys and raise ImproperlyConfigured.
-
-    # Periodic beat schedule (replaces APScheduler cron jobs)
     celery.conf.beat_schedule = {
         "send-daily-user-reminders": {
             "task": "scheduler.send_daily_reminders",
